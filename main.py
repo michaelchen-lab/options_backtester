@@ -13,53 +13,62 @@ def start(file):
     """
 
     ## Getting user pref. and dates
-    symbols,strategy,exec_params,strat_params = config(file)
-    print(strat_params)
-    if strategy == 'earnings':
-        ## Get dates of position entries
-        entry_dates,exit_dates,DTE_range = getDates.earnings(symbols,strat_params)
-    elif strategy == 'calendar':
-        pass
+    profile = config(file)
+    ## Get entry_dates, exit_dates, DTE_range
+    getDates(profile)
 
     ## Execute Program
-    print(strat_params)
-    print('done')
-    results = execution.main_backtest(entry_dates,symbols,DTE_range,strategy,exec_params,strat_params)
+    results = execution.main_backtest(profile)
 
     return entry_dates
 
-def config(file):
+class config():
     """
     Function: Open settings csv file and save all parameters
     Parameters: file (string) -- Name of csv file to open
     Returns: symbols (list), strategy (string), exec_params (dict), strat_params (dict)
     """
-    try:
-        df = pd.read_csv(file)
-    except:
-        print('setting file not found')
+    def __init__(self, file):
+        symbols,strategy,main_dir,exec_params,strat_params = self.get_params(file)
 
-    ## Key Parameters
-    strategy,symbols = df.iloc[0]['Value1'], df.iloc[1]['Value1'].split(',')
-    ## Get Execution Parameters
-    exec_start,exec_end = df.index[df['Variable'] == 'Time Period'].tolist()[0],df.index[df['Variable'] == 'Bid-Ask Slippage'].tolist()[0]
-    exec_indexes = list(range(exec_start,exec_end+1))
-    exec_params = df.iloc[exec_indexes]
-    exec_params = dict(zip(exec_params.Variable,exec_params.Value1))
-    ## Get Startegy Parameters
-    strat_params = df.tail(len(df.index)-exec_end-1)
-    strat_params = dict(zip(strat_params.Variable,strat_params.Value1))
+        self.symbols = symbols
+        self.strategy = strategy
+        self.main_dir = main_dir
+        self.exec_params = exec_params
+        self.strat_params = strat_params
 
-    return symbols,strategy,exec_params,strat_params
+    def get_params(self,file):
+        try:
+            df = pd.read_csv(file, index_col='Variable')
+        except:
+            print('setting file not found')
 
-class getDates:
+        ## Key parameters
+        symbols, strategy, main_dir = df.loc['Symbols','Value1'].split(','), df.loc['Strategy','Value1'], df.loc['Main Directory','Value1']
+        ## Get Execution parameters
+        exec_param_names = ['Time Period','Init.Liquidity','Position Size','Prof. Target','Stop Loss','Commissions','Bid-Ask Slippage']
+        exec_df = df[df.index.isin(exec_param_names)]
+        exec_params = dict(zip(exec_param_names, exec_df['Value1'].tolist()))
+        ## Get Strategy parameters
+        strat_param_names = ['Max/Min DTE aft. Earnings','Preference: DTE aft. Earnings','Max/Min Entry Days bef. Earnings','Preference: Days bef. Earnings','Exit Days bef. Earnings']
+        strat_df = df[df.index.isin(strat_param_names)]
+        strat_params = dict(zip(strat_param_names,strat_df['Value1'].tolist()))
+
+        return symbols, strategy, main_dir, exec_params, strat_params
+
+class getDates():
     """
     Function: A group of functions for finding the dates to open positions on each stock of each strategy
     """
-    def __init__():
-        pass
+    def __init__(self, profile):
+        if profile.strategy == 'earnings':
+            entry_dates,exit_dates,max_min_exp_dates = self.earnings(profile.symbols, profile.strat_params)
 
-    def earnings(symbols,strat_params):
+        profile.entry_dates = entry_dates
+        profile.exit_dates = exit_dates
+        profile.DTE_range = max_min_exp_dates
+
+    def earnings(self,symbols,strat_params):
         """
         Function: A wrapper for using earnings_program to find dates for the earnings strategy
         Parameters:

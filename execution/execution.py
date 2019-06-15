@@ -3,48 +3,45 @@ from datetime import datetime
 import itertools
 import os
 
-def main_backtest(entry_dates={},exit_dates=[],DTE_range=[],symbols=[],strategy=[],exec_params=[],strat_params=[]):
+def main_backtest(profile):
     """
     Function: The main program responsible for executing the backtest
 
     Parameters:
-        entry_dates (dict) -- {'BAC':[Timestamp('2009-07-10 00:00:00'), ...], 'AMAT':[...]}
-        exit_dates (list) -- ['BAC','AMAT']
-        DTE_range (dict) --
+        profile.
+            entry_dates (dict) -- {'BAC':[Timestamp('2009-07-10 00:00:00'), ...], 'AMAT':[...]}
+            exit_dates (list) -- ['BAC','AMAT']
+            DTE_range (dict) --
             List of max and min DTE for each trade, arranged according to preference
             Example: {'BAC':[[Timestamp('2009-07-10 00:00:00'), ...],[..., ...]], 'AMAT':[...]}
-        strategy (string) -- 'earnings'/'calendar'
-        exec_params (dict) -- Generic execution parameters
-        strat_params (dict) -- Strategy specific parameters
-            (Example for both params are at the bottom)
+            symbols (list) -- ['AAPL','BAC'...]
+            strategy (string) -- 'earnings'/'calendar'
+            exec_params (dict) -- Generic execution parameters
+            strat_params (dict) -- Strategy specific parameters
+                (Example for both params are at the bottom)
 
     """
-    pf = portfolio(entry_dates,strategy)
+    pf = portfolio(profile)
     main_dir = 'Users/Michael/Desktop/Options/options_data'
-    tradingdays_stamp,tradingdays_dir = tools.getTradingDays()
+    tradingdays_stamp, tradingdays_dir = tools.getTradingDays()
 
     ## ---- START TIME LOOP ----
-    for date_dir,date_stamp in itertools.izip(tradingdays_dir, tradingdays_stamp):
+    for date_dir, date_stamp in zip(tradingdays_dir, tradingdays_stamp):
         ## If there are positions open or the date is an entry date, file will be opened.
-        entry_symbols,open_pos = pf.check_event(date_stamp)
+        entry_symbols, open_pos = pf.check_event(date_stamp)
         if entry_symbols == [] and open_pos == False: ## If there are no events
             continue
-        data = pd.read_hdf(r'C:/'+main_dir+date_dir) ## Open data
+        data = tools.getOptions('hdf5', profile.main_dir, date_dir)
         if entry_symbols != []: ## If there are symbols to enter positions
-            portfolio.open_pos(data,entry_symbols)
+            portfolio.open_pos(data, entry_symbols)
 
 class portfolio:
     """
     Function: The main handler of portfolio execution and storing positions
     """
-    def __init__(self,entry_dates,exit_dates,DTE_range,strategy,exec_params,strat_params):
-        self.entry_dates = entry_dates
-        self.exit_dates = exit_dates
-        self.DTE_range = DTE_range
-        self.strategy = strategy
+    def __init__(self,profile):
+        self.profile = profile
         self.positions = {}
-        self.strat_params = strat_params
-        self.exec_params = exec_params
 
     def check_event(self,date):
         """
@@ -57,9 +54,9 @@ class portfolio:
         """
         ## Check for entry dates
         entry_symbols = []
-        for symbol,dates in self.entry_dates:
+        for symbol,dates in self.profile.entry_dates.items():
             if date in dates:
-                entry_events.append(symbol)
+                entry_symbols.append(symbol)
         ## Check for open positions
         if self.positions != {}:
             open_pos = True
@@ -111,14 +108,15 @@ class tools:
             date (string, must be h5 format) -- '20190104' (Example)
         Returns: '/2019/201901/20190104_edited.h5' (Example)
         """
-        url = '/'+date[:4]+'/'+date[:6]+'/'+date+'_edited.h5'
+        url = r'\\'+date[:4]+r'\\'+date[:6]+r'\\'+date+'_edited.h5'
         return url
 
-    def getOptions(type,main_dir,date_dir):
-        if type == 'csv':
+    def getOptions(format,main_dir,date_dir):
+        if format == 'csv':
             return pd.read_csv(r'C:/'+main_dir+date_dir)
-        elif type == 'hdf5':
-            return pd.read_hdf(r'C:/'+main_dir+date_dir)
+        elif format == 'hdf5':
+            print(main_dir+date_dir)
+            return pd.read_hdf(main_dir+date_dir)
 
 #main_backtest()
 
