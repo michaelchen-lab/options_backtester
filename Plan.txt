@@ -1,0 +1,65 @@
+<<Options Backtesting Tool>>
+
+List of tests implemented:
+  a. Pre-earnings long straddle
+  b. Long Put/Call calendar during term structure inversion
+  c. Iron Condor/Butterfly w/o IV and volatility filters
+
+List of data available:
+  1. EOD Options data (2002-2018)
+  2. EOD Stock data (~20 years depending on symbol)
+  3. Earnings data (~8 years depending on symbol)
+  4. Stocks VIX data (2002-2018)
+
+List of programs:
+
+  1. Config file (Input)
+    - Type of Backtest
+    - List of symbols, Time period
+    - Init. Liquidity, Position sizing, Commissions, Theo. bid-ask slippage
+    - Applicable parameters (e.g. IV and ATR filter, no. of days before earnings)
+    - Trade Closing parameters: Prof. target, stop loss, min. DTE
+
+  2. MAIN program
+    - Processes Config file
+    - Uses the data programs to find symbols and dates that match criteria
+      (Inputs: Time period, applicable parameters)
+    - Uses the options program to execute all trades
+      (Inputs: All dates to open trade, trade strategy, DTE(s), Delta, Closing parameters)
+
+  3. Data programs
+
+    a. Earnings data program (for pre-earnings test)
+      - Processes CSV file containing earnings date
+      - Returns a list of dates which are a specific no. of days before earnings
+
+    b. Stock data program (for IC/IB test)
+      - Processes the ALPHAVANTAGE API or stock CSV file to collect data
+      - Calculate data (e.g. ATR, BBANDS)
+      - Returns a list of dates where the selected criteria is met
+
+    c. Stocks VIX data program (for IC/IB test)
+      - Processes stocks VIX CSV file
+      - Returns a list of dates where the selected IV criteria is met
+
+    d. Term Structure data program (for LPC test)
+      - Processes a Pandas Dataframe sent by the Execution Program (All options by one symbol of one day)
+      - If criteria is met, it returns True/False
+
+  4. Execution programs
+
+    a. Execution program
+      - Processes the daily options CSV file of time period set by user
+      - Open positions according to entry inputs sent by MAIN program
+      - All trades (expired and existing are recorded by Portfolio program)
+      - If portfolio is holding options, the positions must be check for exit inputs
+      - Long Call/Put Calendar function:
+        1. Sends a Pandas DataFrame of All options by one symbol of one day to Term Structure data program.
+        2. If data program return True, execute trade.
+        (This is to increase the speed of the code)
+
+    b. Portfolio program
+      - Records all opening and closing trades sent by Execution program
+      - Keeps two Pandas DataFrames:
+        1. Existing positions
+        2. Closed positions

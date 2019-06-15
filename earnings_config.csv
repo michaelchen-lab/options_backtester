@@ -1,0 +1,15 @@
+Variable,Value1
+Strategy,earnings
+Symbols,"BAC,AMAT"
+Time Period, Full
+Init.Liquidity,"100,000"
+Position Size,10%
+Prof. Target,10%
+Stop Loss,10%
+Commissions,1.5
+Bid-Ask Slippage,1
+Max/Min DTE aft. Earnings,"10,1"
+Preference: DTE aft. Earnings,min
+Max/Min Entry Days bef. Earnings,"11,7"
+Preference: Days bef. Earnings, min
+Exit Days bef. Earnings,1

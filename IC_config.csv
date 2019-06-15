@@ -1,0 +1,16 @@
+Variable,Value1
+Strategy,earnings
+Symbols,"[AMAT,BAC]"
+Time period,Full
+Init.Liquidity,10000
+Position Size,10%
+Prof. Target,50%
+Stop Loss,None
+Commissions,1.5
+Bid-ask slippage,1
+Max/Min DTE,"[45,30]"
+Max Positions,1
+Max/Min Delta (Long),"[17,14]"
+Max/Min Margin,"[1,1]"
+Criteria Type,[VIX]
+Criteria ,"[percent_change,+20%]"

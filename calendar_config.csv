@@ -1,0 +1,14 @@
+Variable,Value1,Value2
+Strategy,Straddle,
+Symbols,"[AMAT,BAC]",
+Time period,Full,
+Init.Liquidity,"100,000",
+Position Size,10%,
+Prof. Target,10%,
+Stop Loss,10%,
+Commissions,1.5,
+Bid-ask slippage,1,
+Max/Min DTE,None,8
+Max/Min DTE aft. Earnings,5,1
+Entry/Exit Days bef. Earnings,7,1
+Track,IV Change,
