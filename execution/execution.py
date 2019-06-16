@@ -33,7 +33,7 @@ def main_backtest(profile):
             continue
         data = tools.getOptions('hdf5', profile.main_dir, date_dir)
         if entry_symbols != []: ## If there are symbols to enter positions
-            portfolio.open_pos(data, entry_symbols)
+            pf.open_pos(data, entry_symbols, date_stamp)
 
 class portfolio:
     """
@@ -41,7 +41,8 @@ class portfolio:
     """
     def __init__(self,profile):
         self.profile = profile
-        self.positions = {}
+        self.open_positions = dict(zip(self.profile.symbols, [[] for sym in self.profile.symbols]))
+        self.closed_positions = dict(zip(self.profile.symbols, [[] for sym in self.profile.symbols]))
 
     def check_event(self,date):
         """
@@ -58,24 +59,50 @@ class portfolio:
             if date in dates:
                 entry_symbols.append(symbol)
         ## Check for open positions
-        if self.positions != {}:
-            open_pos = True
+        if self.open_positions != {}:
+            open_pos = False ## MUST CHANGE !!!!!!!!!!!!!!!!!!!!!!!
         else:
             open_pos = False
 
         return entry_symbols,open_pos
 
-    def entry_pos(self,all_data,symbols):
+    def open_pos(self, data, entry_symbols, exec_date):
         """
-        Function: The main engine for executing trades.
+        Function: Opens new positions.
         Parameters:
-            all_data (Pandas df)-- the options data of that day
-            symbols (list)-- the symbols to use to add positions
+            all_data (Pandas df) --- the options data of that day
+            entry_symbols (list) --- the symbols to use to add positions
+            exec_date (Timestamp) --- Date to open position
         """
-        if self.strategy == 'earnings': ## Execution based on earnings parameters
-            data = all_data.loc[all_data['UnderlyingSymbol'].isin(symbols)]
-            for sym in symbols:
+        if self.profile.strategy == 'earnings': ## Execution based on earnings parameters
+            for sym in entry_symbols:
                 symbol_df = data.loc[data['UnderlyingSymbol'] == sym]
+
+                for date_range in self.profile.DTE_range[sym]: ## Get DTE range
+                    if date_range[0] > exec_date:
+                        exp_range = date_range
+                        break
+                sym_exp = list(dict.fromkeys(symbol_df['Expiration'].tolist()))
+                sym_datetime_exp = [datetime.strptime(str_date, '%m/%d/%Y') for str_date in sym_exp]
+
+                ## Get options contract expiration (pos_exp)
+                pos_exp = False
+                for option_exp in sym_datetime_exp:
+                    if exp_range[0] < option_exp < exp_range[1]:
+                        pos_exp = option_exp
+                if not pos_exp: ## No suitable options expiration date has been found
+                    print('No option contracts with expirations between '+str(exp_range[0])+' and '+str(exp_range[1])+'.')
+                print(pos_exp)
+
+                ## Get exact options contract (the more ATM the better)
+                symbol_df = symbol_df.loc[symbol_df['Expiration'] == pos_exp.strftime('%m/%d/%Y')]
+                sym_price = symbol_df['UnderlyingPrice'].tolist()[0]
+                sym_strikes = list(dict.fromkeys(symbol_df['Strike'].tolist())) ## all strike prices of given exp date
+                pos_strike = min(sym_strikes, key=lambda x:abs(x - sym_price)) ## Get strike closest to symbol price
+
+                ## Saving data
+                strike_df = symbol_df.loc[symbol_df['Strike'] == pos_strike]
+                self.open_positions[sym].append(strike_df)
 
     def log(self,info):
         ## Save data (entry/exit info, portfolio value changes)
@@ -117,28 +144,3 @@ class tools:
         elif format == 'hdf5':
             print(main_dir+date_dir)
             return pd.read_hdf(main_dir+date_dir)
-
-#main_backtest()
-
-
-# REFERENCE:
-
-# Execution Parameters:
-# {
-#     'Time Period': ' Full',
-#     'Init.Liquidity': '100,000',
-#     'Position Size': '10%',
-#     'Prof. Target': '10%',
-#     'Stop Loss': '10%',
-#     'Commissions': '1.5',
-#     'Bid-Ask Slippage': '1'
-# }
-#
-# Strategy Paramters:
-# {
-#     'Max/Min DTE aft. Earnings': '10,1',
-#     'Preference: DTE aft. Earnings': 'min',
-#     'Max/Min Entry Days bef. Earnings': '11,7',
-#     'Preference: Days bef. Earnings': 'min',
-#     'Exit Days bef. Earnings': '1'
-# }

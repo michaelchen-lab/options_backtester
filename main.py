@@ -1,6 +1,7 @@
 from data_programs import earnings_program,stocks_program,term_structure_program,vix_program
 from execution import execution,portfolio
 import pandas as pd
+from datetime import datetime
 
 import os
 os.chdir('C:\\Users\\Michael\\Desktop\\Options\\Programs\\backtester')
@@ -16,6 +17,14 @@ def start(file):
     profile = config(file)
     ## Get entry_dates, exit_dates, DTE_range
     getDates(profile)
+
+    # print(profile.symbols)
+    # print(profile.strategy)
+    # print(profile.exec_params)
+    # print(profile.strat_params)
+    # print(profile.entry_dates)
+    # print(profile.exit_dates)
+    # print(profile.DTE_range)
 
     ## Execute Program
     results = execution.main_backtest(profile)
@@ -76,7 +85,7 @@ class getDates():
             strat_params (dict) -- parameters unique to each strategy
         """
         ## Use earnings_program to get dates
-        #dates = earnings_program.exec(symbols,entry[0],entry[1],pref)
+
         entry_dates,exit_dates,max_min_exp_dates = earnings_program.exec(symbols,strat_params)
 
         return entry_dates,exit_dates,max_min_exp_dates
@@ -91,30 +100,3 @@ class getDates():
         pass
 
 print(start('earnings_config.csv'))
-
-# ['BAC', 'AMAT']
-# earnings
-#
-# Execution Parameters:
-#            Variable   Value1
-# 2       Time Period     Full
-# 3    Init.Liquidity  100,000
-# 4     Position Size      10%
-# 5      Prof. Target      10%
-# 6         Stop Loss      10%
-# 7       Commissions      1.5
-# 8  Bid-Ask Slippage        1
-#
-# Strategy Paramters:
-#                             Variable Value1
-# 9          Max/Min DTE aft. Earnings   10,1
-# 10     Preference: DTE aft. Earnings    Min
-# 11  Max/Min Entry Days bef. Earnings   11,7
-# 12    Preference: Days bef. Earnings    min (shortest possible days bef. earnings)
-# 13           Exit Days bef. Earnings      1
-
-# Result:
-# {
-#     'BAC': [datetime.datetime(2009, 7, 10, 0, 0), datetime.datetime(2009, 10, 9, 0, 0)],
-#     'AMAT': [datetime.datetime(2009, 5, 5, 0, 0), datetime.datetime(2009, 8, 4, 0, 0)]
-# }
