@@ -1,5 +1,5 @@
 from data_programs import earnings_program,stocks_program,term_structure_program,vix_program
-from execution import execution,portfolio
+from execution import execution, logs
 import pandas as pd
 from datetime import datetime
 
@@ -17,6 +17,8 @@ def start(file):
     profile = config(file)
     ## Get entry_dates, exit_dates, DTE_range
     getDates(profile)
+    ## Create logs
+    lg = logs.create()
 
     # print(profile.symbols)
     # print(profile.strategy)
@@ -27,7 +29,7 @@ def start(file):
     # print(profile.DTE_range)
 
     ## Execute Program
-    results = execution.main_backtest(profile)
+    results = execution.main_backtest(profile, lg)
 
     return entry_dates
 

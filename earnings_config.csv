@@ -3,14 +3,14 @@ Strategy,earnings
 Symbols,"BAC,AMAT"
 Main Directory,C:\\Users\\Michael\\Desktop\\Options\\options_data
 Time Period,Full
-Init.Liquidity,"100,000"
-Position Size,10%
-Prof. Target,10%
-Stop Loss,10%
+Init.Liquidity,5000
+Position Size,0.1
+Prof. Target,0.1
+Stop Loss,0.1
 Commissions,1.5
 Bid-Ask Slippage,1
 Max/Min DTE aft. Earnings,"10,1"
 Preference: DTE aft. Earnings,min
 Max/Min Entry Days bef. Earnings,"11,7"
-Preference: Days bef. Earnings, min
+Preference: Days bef. Earnings,min
 Exit Days bef. Earnings,1

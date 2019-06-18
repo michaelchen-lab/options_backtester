@@ -1,9 +1,13 @@
+import os
+os.chdir(r'C:\Users\Michael\Desktop\Options\programs\backtester\execution')
+
+#import logs
 import pandas as pd
+pd.options.mode.chained_assignment = None
 from datetime import datetime
 import itertools
-import os
 
-def main_backtest(profile):
+def main_backtest(profile, lg):
     """
     Function: The main program responsible for executing the backtest
 
@@ -19,52 +23,104 @@ def main_backtest(profile):
             exec_params (dict) -- Generic execution parameters
             strat_params (dict) -- Strategy specific parameters
                 (Example for both params are at the bottom)
+        lg --- class of logs.py
 
     """
-    pf = portfolio(profile)
-    main_dir = 'Users/Michael/Desktop/Options/options_data'
+    pf = portfolio(profile, lg)
+    #lg = logs.create()
     tradingdays_stamp, tradingdays_dir = tools.getTradingDays()
 
     ## ---- START TIME LOOP ----
     for date_dir, date_stamp in zip(tradingdays_dir, tradingdays_stamp):
         ## If there are positions open or the date is an entry date, file will be opened.
-        entry_symbols, open_pos = pf.check_event(date_stamp)
-        if entry_symbols == [] and open_pos == False: ## If there are no events
-            continue
-        data = tools.getOptions('hdf5', profile.main_dir, date_dir)
-        if entry_symbols != []: ## If there are symbols to enter positions
+
+        print(pf.balance)
+
+        entry_symbols, open_sym = pf.check_event(date_stamp)
+
+        ## NOTE: update_balance should always be before review_pos
+        ##       (since close_pos does not change balance according to option prices)
+        if entry_symbols == [] and open_sym == []: ## If there are no events
+            pf.balance_history.append(pf.balance) ## Update history
+        elif entry_symbols != [] and open_sym == []:
+            data = tools.getOptions('hdf5', profile.main_dir, date_dir)
+            pf.balance_history.append(pf.balance)
+            pf.open_pos(data, entry_symbols, date_stamp)
+        elif entry_symbols == [] and open_sym != []:
+            data = tools.getOptions('hdf5', profile.main_dir, date_dir)
+            pf.update_balance(data, open_sym)
+            pf.review_pos(data, open_sym, date_stamp)
+        elif entry_symbosl != [] and open_sym != []:
+            data = tools.getOptions('hdf5', profile.main_dir, date_dir)
+            pf.update_balance(data, open_sym)
+            pf.review_pos(data, open_sym, date_stamp)
             pf.open_pos(data, entry_symbols, date_stamp)
 
 class portfolio:
     """
     Function: The main handler of portfolio execution and storing positions
     """
-    def __init__(self,profile):
+    def __init__(self, profile, lg):
         self.profile = profile
+        self.lg = lg
+
         self.open_positions = dict(zip(self.profile.symbols, [[] for sym in self.profile.symbols]))
         self.closed_positions = dict(zip(self.profile.symbols, [[] for sym in self.profile.symbols]))
 
-    def check_event(self,date):
+        ## Current balance must be reflected in balance history
+        self.balance = int(self.profile.exec_params['Init.Liquidity'])
+        self.balance_history = [int(self.profile.exec_params['Init.Liquidity'])]
+
+    def check_event(self, date):
         """
         Function: Check for entry dates and open positions
         Parameters:
-            date (Timestamp) -- Example: Timestamp('2016-07-06 00:00:00')
+            date (datetime) -- Example: Timestamp('2016-07-06 00:00:00')
         Returns:
             entry_symbols (list) -- List of symbols to trade on that day
             open_pos (Boolean) -- True if there are open positions on that day
         """
         ## Check for entry dates
         entry_symbols = []
-        for symbol,dates in self.profile.entry_dates.items():
+        for symbol, dates in self.profile.entry_dates.items():
             if date in dates:
                 entry_symbols.append(symbol)
-        ## Check for open positions
-        if self.open_positions != {}:
-            open_pos = False ## MUST CHANGE !!!!!!!!!!!!!!!!!!!!!!!
-        else:
-            open_pos = False
+        for sym in entry_symbols: ## Remove all previous dates for entry and exit dates of each symbol
+            self.profile.entry_dates[sym] = self.profile.entry_dates[sym][self.profile.entry_dates[sym].index(date):]
+            self.profile.exit_dates[sym] = self.profile.exit_dates[sym][-len(self.profile.entry_dates[sym]):]
+
+        ## Get symbols with open positions
+        open_pos = [sym for sym in self.open_positions.keys() if self.open_positions[sym] != []]
 
         return entry_symbols,open_pos
+
+    def update_balance(self, data, open_symbols):
+        """
+        Function: Update balance according to market value of existing positions
+        Parameters:
+            data (Pandas df) --- Options data of that day
+            open_symbols (list) --- Symbols with open positions
+        """
+        total_change = 0
+        for sym in open_symbols:
+            for pos, original_cost in self.open_positions[sym]:
+                option_roots = pos['OptionRoot'].tolist()
+                data_pos = data[data['OptionRoot'].isin(option_roots)]
+                mid_prices = [(bid + ask)/2 for bid, ask in zip(data_pos['Bid'].tolist(), data_pos['Ask'].tolist())]
+                prev_mid_prices = pos['Prev_Mid'].tolist()
+
+                ## Update mid prices
+                pos.drop('Prev_Mid', axis=1)
+                pos['Prev_Mid'] = mid_prices
+
+                ## Get change in total cost of trade
+                prev_total = round(sum(prev_mid_prices) * 100)
+                current_total = round(sum(mid_prices) * 100)
+                total_change += current_total - prev_total
+                total_change = total_change * int(int(pos['Quantity'].tolist()[0]))
+
+        self.balance += total_change
+        self.balance_history.append(self.balance)
 
     def open_pos(self, data, entry_symbols, exec_date):
         """
@@ -72,7 +128,9 @@ class portfolio:
         Parameters:
             all_data (Pandas df) --- the options data of that day
             entry_symbols (list) --- the symbols to use to add positions
-            exec_date (Timestamp) --- Date to open position
+            exec_date (datetime) --- Date to open position
+        Returns;
+            data (Pandas df) --- Two rows of the same datadate, symbol, strike and expiration date
         """
         if self.profile.strategy == 'earnings': ## Execution based on earnings parameters
             for sym in entry_symbols:
@@ -92,7 +150,6 @@ class portfolio:
                         pos_exp = option_exp
                 if not pos_exp: ## No suitable options expiration date has been found
                     print('No option contracts with expirations between '+str(exp_range[0])+' and '+str(exp_range[1])+'.')
-                print(pos_exp)
 
                 ## Get exact options contract (the more ATM the better)
                 symbol_df = symbol_df.loc[symbol_df['Expiration'] == pos_exp.strftime('%m/%d/%Y')]
@@ -100,13 +157,55 @@ class portfolio:
                 sym_strikes = list(dict.fromkeys(symbol_df['Strike'].tolist())) ## all strike prices of given exp date
                 pos_strike = min(sym_strikes, key=lambda x:abs(x - sym_price)) ## Get strike closest to symbol price
 
-                ## Saving data
+                ## Get position size by creating 'Quantity' column
                 strike_df = symbol_df.loc[symbol_df['Strike'] == pos_strike]
-                self.open_positions[sym].append(strike_df)
 
-    def log(self,info):
-        ## Save data (entry/exit info, portfolio value changes)
-        pass
+                max_cost = self.balance * float(self.profile.exec_params['Position Size'])
+                mid_prices = [(bid + ask)/2 for bid, ask in zip(strike_df['Bid'].tolist(), strike_df['Ask'].tolist())]
+                strike_df['Prev_Mid'] = mid_prices
+                cost_per_trade = round(sum(mid_prices) * 100)
+                num_trade = max_cost // cost_per_trade
+                strike_df['Quantity'] = num_trade
+
+                ## Saving data
+                self.lg.add_open_msg(exec_date, 'Position opened with '+sym+'.', strike_df['OptionRoot'].tolist())
+                self.open_positions[sym].append([strike_df, cost_per_trade])
+
+    def review_pos(self, data, open_sym, date):
+        """
+        Function: Reviews existing positions according to strategy parameters
+        Parameters:
+            data (Pandas df) --- the options data of the day
+            open_sym (list) --- list of all symbols with open positions
+            date (datetime) --- current date
+        """
+        for sym in open_sym:
+            for pos, original_cost in self.open_positions[sym]:
+                if self.profile.strategy == 'earnings':
+                    option_root = pos['OptionRoot'].tolist()
+                    data_pos = data[data['OptionRoot'].isin(option_root)]
+                    if len(data_pos.index) != 2:
+                        self.lg.add_error_msg(date, 'Unable to get contracts with roots ('+str(option_root)+') on option data of current date.')
+
+                    if date == self.profile.exit_dates[sym][0]: ## When exit day is reached
+                        self.lg.add_close_msg(date, 'Position with '+sym+' has closed due to exit_date', option_root)
+                        self.close_pos(data_pos, sym, pos, original_cost)
+                        continue
+
+                    current_cost = round(sum([(bid + ask)/2 for bid, ask in zip(data_pos['Bid'].tolist(), data_pos['Ask'].tolist())]) * 100)
+                    if (current_cost - original_cost) / original_cost >= float(self.profile.exec_params['Position Size']):
+                        self.lg.add_close_msg(date, 'Profit Target reached', option_root)
+                        self.close_pos(data_pos, sym, pos, original_cost)
+
+    def close_pos(self, current_pos, sym, orig_pos, orig_cost):
+        ## Update positions
+        self.open_positions[sym].remove([orig_pos, orig_cost])
+        self.closed_positions[sym].append([current_pos])
+
+        ## Deduct transaction costs
+        total_commissions = sum(orig_pos['Quantity'].tolist()) * 1.5
+        self.balance -= total_commissions
+        self.balance_history[-1] = self.balance ## Originally entered by update_balance
 
 class tools:
     def getTradingDays():
