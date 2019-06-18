@@ -1,7 +1,8 @@
 Variable,Value1
 Strategy,earnings
 Symbols,"BAC,AMAT"
-Main Directory,C:\\Users\\Michael\\Desktop\\Options\\options_data
+Program Directory,C:\Users\Michael\Desktop\Options\programs\options_backtester\backtester
+Data Directory,C:\Users\Michael\Desktop\Options\options_data\
 Time Period,Full
 Init.Liquidity,5000
 Position Size,0.1
@@ -14,3 +15,4 @@ Preference: DTE aft. Earnings,min
 Max/Min Entry Days bef. Earnings,"11,7"
 Preference: Days bef. Earnings,min
 Exit Days bef. Earnings,1
+Earnings Directory,C:\Users\Michael\Desktop\Options\earnings_data

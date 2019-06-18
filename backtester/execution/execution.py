@@ -1,7 +1,3 @@
-import os
-os.chdir(r'C:\Users\Michael\Desktop\Options\programs\backtester\execution')
-
-#import logs
 import pandas as pd
 pd.options.mode.chained_assignment = None
 from datetime import datetime
@@ -28,13 +24,13 @@ def main_backtest(profile, lg):
     """
     pf = portfolio(profile, lg)
     #lg = logs.create()
-    tradingdays_stamp, tradingdays_dir = tools.getTradingDays()
+    tradingdays_stamp, tradingdays_dir = tools.getTradingDays(pf)
+
+    read_count = 0 ## to delete
 
     ## ---- START TIME LOOP ----
     for date_dir, date_stamp in zip(tradingdays_dir, tradingdays_stamp):
         ## If there are positions open or the date is an entry date, file will be opened.
-
-        print(pf.balance)
 
         entry_symbols, open_sym = pf.check_event(date_stamp)
 
@@ -43,18 +39,25 @@ def main_backtest(profile, lg):
         if entry_symbols == [] and open_sym == []: ## If there are no events
             pf.balance_history.append(pf.balance) ## Update history
         elif entry_symbols != [] and open_sym == []:
-            data = tools.getOptions('hdf5', profile.main_dir, date_dir)
+            data = tools.getOptions('hdf5', profile.data_dir, date_dir)
             pf.balance_history.append(pf.balance)
             pf.open_pos(data, entry_symbols, date_stamp)
         elif entry_symbols == [] and open_sym != []:
-            data = tools.getOptions('hdf5', profile.main_dir, date_dir)
+            read_count += 1
+
+            data = tools.getOptions('hdf5', profile.data_dir, date_dir)
             pf.update_balance(data, open_sym)
             pf.review_pos(data, open_sym, date_stamp)
         elif entry_symbosl != [] and open_sym != []:
-            data = tools.getOptions('hdf5', profile.main_dir, date_dir)
+            read_count += 1
+
+            data = tools.getOptions('hdf5', profile.data_dir, date_dir)
             pf.update_balance(data, open_sym)
             pf.review_pos(data, open_sym, date_stamp)
             pf.open_pos(data, entry_symbols, date_stamp)
+
+    print(read_count)
+    return pf
 
 class portfolio:
     """
@@ -129,8 +132,6 @@ class portfolio:
             all_data (Pandas df) --- the options data of that day
             entry_symbols (list) --- the symbols to use to add positions
             exec_date (datetime) --- Date to open position
-        Returns;
-            data (Pandas df) --- Two rows of the same datadate, symbol, strike and expiration date
         """
         if self.profile.strategy == 'earnings': ## Execution based on earnings parameters
             for sym in entry_symbols:
@@ -208,7 +209,7 @@ class portfolio:
         self.balance_history[-1] = self.balance ## Originally entered by update_balance
 
 class tools:
-    def getTradingDays():
+    def getTradingDays(pf):
         """
         Function: Get list of trading days from tradingdays.txt
         Returns:
@@ -216,7 +217,6 @@ class tools:
             Directory -- ['/2016/201607/20160706_edited.h5', '/2016/201607/20160707_edited.h5', ...]
         """
         ## Get all trading days
-        os.chdir('C:\\Users\\Michael\\Desktop\\Options\\programs\\backtester')
         tradingdays = open('tradingdays.txt', 'r')
         tradingdays = [line.split(',') for line in tradingdays.readlines()]
 
@@ -237,9 +237,10 @@ class tools:
         url = r'\\'+date[:4]+r'\\'+date[:6]+r'\\'+date+'_edited.h5'
         return url
 
-    def getOptions(format,main_dir,date_dir):
+    def getOptions(format,data_dir,date_dir):
         if format == 'csv':
-            return pd.read_csv(r'C:/'+main_dir+date_dir)
+            return pd.read_csv(r'C:/'+data_dir+date_dir)
         elif format == 'hdf5':
-            print(main_dir+date_dir)
-            return pd.read_hdf(main_dir+date_dir)
+            #print(data_dir+date_dir)
+            columns = ['UnderlyingSymbol', 'UnderlyingPrice', 'OptionRoot', 'Type', 'Expiration', 'DataDate', 'Strike', 'Last', 'Bid', 'Ask', 'Volume', 'OpenInterest']
+            return pd.read_hdf(data_dir+date_dir, usecols=columns)

@@ -4,7 +4,6 @@ import numpy as np
 from datetime import datetime,timedelta
 from dateutil.relativedelta import relativedelta
 import os, glob
-os.chdir('C:\\Users\\Michael\\Desktop\\Options\\vix_data\\all')
 
 def exec(symbols =[],criteria=[],startDate='',endDate='2018-10-30'):
     ## Inputs list of symbols, criteria for stock VIX and the start date of backtest

@@ -1,9 +1,8 @@
 import pandas as pd
 from datetime import datetime,timedelta
 import os
-os.chdir('C:\\Users\\Michael\\Desktop\\Options\\earnings_data')
 
-def exec(symbols,strat_params):
+def exec(symbols,strat_params,main_dir,earnings_dir):
     """
     Returns:
         Entry_dates (dict) --- Which day and symbol to enter trade
@@ -22,7 +21,7 @@ def exec(symbols,strat_params):
     sym_entry_dates,sym_exit_dates,sym_exp_range = {},{},{}
     tradingdays = tools.getTradingDays()
     for symbol in symbols:
-        df = findData(symbol) ## earnings data
+        df = findData(symbol, earnings_dir) ## earnings data
         ## Get entry dates
         entry_dates = find.entrydate(df,entry[0],entry[1],days_bef_earnings_pref,tradingdays)
         sym_entry_dates[symbol] = entry_dates
@@ -32,10 +31,11 @@ def exec(symbols,strat_params):
         ## Get option contract expiration dates max and min
         exp_range = find.max_exp(df,exit_range[0],exit_range[1],exit_pref)
         sym_exp_range[symbol] = exp_range
+        os.chdir(main_dir)
     return sym_entry_dates, sym_exit_dates, sym_exp_range
 
-def findData(symbol): ## Get earnings data
-    os.chdir('C:\\Users\\Michael\\Desktop\\Options\\earnings_data')
+def findData(symbol, earnings_dir): ## Get earnings data
+    os.chdir(earnings_dir)
     df = pd.read_csv(symbol+'.csv')
     df['Date'] =  pd.to_datetime(df['Date'], format='%m/%d/%Y')
     df = df.loc[df['Date'] < datetime(2018,11,1)]
@@ -102,7 +102,6 @@ class tools:
 
     def getTradingDays():
         ## Get list of trading days from tradingdays.txt
-        os.chdir('C:\\Users\\Michael\\Desktop\\Options\\programs\\backtester')
         tradingdays = open('tradingdays.txt', 'r')
         tradingdays = [line.split(',') for line in tradingdays.readlines()]
         tradingdays = [datetime.strptime(date[0][:-1],"%Y%m%d") for date in tradingdays]

@@ -3,9 +3,6 @@ import sympy as sp
 import numpy as np
 import statistics, collections
 
-import os
-os.chdir('C:\\Users\\Michael\\Desktop\\Options\\Programs\\backtester\\data_programs')
-
 def exec(stocks,indicators,criterias):
     ## FORMAT:
     ## Indicators ---- [List of indicators used]

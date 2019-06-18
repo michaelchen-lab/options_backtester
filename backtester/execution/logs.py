@@ -1,5 +1,3 @@
-import execution
-
 class create:
     def __init__(self):
         self.balance_history = []
